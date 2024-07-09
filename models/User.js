@@ -1,22 +1,52 @@
-const mongoose = require('mongoose')
+const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
-    username: {
-        type: String,
-        required: true
+  username: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  password: {
+    type: String,
+    required: true,
+  },
+  email: {
+    type: String,
+    required: function () {
+      return this.authMethod === "google";
     },
-    password: {
-        type: String,
-        required: true
+    unique: function () {
+      return this.email != null;
     },
-    roles: {
-        type: [String],
-        default: ["Employee"]
+  },
+  name: {
+    type: String,
+    required: function () {
+      return this.authMethod === "google";
     },
-    active: {
-        type: Boolean,
-        default: true
-    }
-})
+  },
+  roles: [
+    {
+      type: String,
+      default: "Employee",
+    },
+  ],
+  active: {
+    type: Boolean,
+    default: true,
+  },
+  authMethod: {
+    type: String,
+    enum: ["local", "google"],
+    default: "local",
+  },
+});
 
-module.exports = mongoose.model('User', userSchema)
+userSchema.pre("save", function (next) {
+  if (this.authMethod === "local" && !this.email) {
+    this.email = undefined;
+  }
+  next();
+});
+
+module.exports = mongoose.model("User", userSchema);
