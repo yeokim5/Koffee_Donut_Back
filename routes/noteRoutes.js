@@ -3,7 +3,7 @@ const router = express.Router();
 const notesController = require("../controllers/notesController");
 const verifyJWT = require("../middleware/verifyJWT");
 
-// router.use(verifyJWT)
+// router.use(verifyJWT);
 
 router
   .route("/")
@@ -11,5 +11,8 @@ router
   .post(notesController.createNewNote)
   .patch(notesController.updateNote)
   .delete(notesController.deleteNote);
+
+router.patch("/:id/like", notesController.likeNote);
+router.patch("/:id/dislike", notesController.dislikeNote);
 
 module.exports = router;

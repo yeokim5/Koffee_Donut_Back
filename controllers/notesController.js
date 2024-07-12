@@ -132,9 +132,98 @@ const deleteNote = async (req, res) => {
   res.json(reply);
 };
 
+// @desc Like a note
+// @route PATCH /notes/:id/like
+// @access Private
+const likeNote = async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.body;
+
+  try {
+    const note = await Note.findById(id);
+
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+
+    if (note.likedBy.includes(userId)) {
+      // User already liked, so we undo the like
+      note.likedBy = note.likedBy.filter((user) => user.toString() !== userId);
+      note.likes--;
+    } else if (note.dislikedBy.includes(userId)) {
+      // User is in the dislike list, so we remove from dislike and add to like
+      note.dislikedBy = note.dislikedBy.filter(
+        (user) => user.toString() !== userId
+      );
+      note.likedBy.push(userId);
+      note.likes += 2;
+    } else {
+      // User is not in either list, so we add to like
+      note.likedBy.push(userId);
+      note.likes++;
+    }
+
+    await note.save();
+
+    res.json({
+      message: "Note like status updated successfully",
+      userId: userId,
+      likes: note.likes,
+      dislikes: note.dislikedBy.length,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Dislike a note
+// @route PATCH /notes/:id/dislike
+// @access Private
+const dislikeNote = async (req, res) => {
+  const { id } = req.params;
+  const { userId } = req.body;
+
+  try {
+    const note = await Note.findById(id);
+
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+
+    if (note.dislikedBy.includes(userId)) {
+      // User already disliked, so we undo the dislike
+      note.dislikedBy = note.dislikedBy.filter(
+        (user) => user.toString() !== userId
+      );
+      note.likes++;
+    } else if (note.likedBy.includes(userId)) {
+      // User is in the like list, so we remove from like and add to dislike
+      note.likedBy = note.likedBy.filter((user) => user.toString() !== userId);
+      note.dislikedBy.push(userId);
+      note.likes -= 2;
+    } else {
+      // User is not in either list, so we add to dislike
+      note.dislikedBy.push(userId);
+      note.likes--;
+    }
+
+    await note.save();
+
+    res.json({
+      message: "Note dislike status updated successfully",
+      userId: userId,
+      likes: note.likes,
+      dislikes: note.dislikedBy.length,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
 module.exports = {
   getAllNotes,
   createNewNote,
   updateNote,
   deleteNote,
+  likeNote,
+  dislikeNote,
 };
