@@ -25,12 +25,10 @@ const userSchema = new mongoose.Schema({
       return this.authMethod === "google";
     },
   },
-  roles: [
-    {
-      type: String,
-      default: "Employee",
-    },
-  ],
+  roles: {
+    type: [String],
+    default: ["Employee"],
+  },
   active: {
     type: Boolean,
     default: true,
@@ -40,6 +38,16 @@ const userSchema = new mongoose.Schema({
     enum: ["local", "google"],
     default: "local",
   },
+  following: [
+    {
+      type: String,
+    },
+  ],
+  followers: [
+    {
+      type: String,
+    },
+  ],
 });
 
 userSchema.pre("save", function (next) {
