@@ -3,21 +3,19 @@ const mongoose = require("mongoose");
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
-    required: true,
     unique: true,
+    sparse: true, // This allows null values and maintains uniqueness for non-null values
   },
   password: {
     type: String,
-    required: true,
+    required: function () {
+      return this.authMethod === "local";
+    },
   },
   email: {
     type: String,
-    required: function () {
-      return this.authMethod === "google";
-    },
-    unique: function () {
-      return this.email != null;
-    },
+    // required: true,
+    unique: true,
   },
   name: {
     type: String,
@@ -37,6 +35,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ["local", "google"],
     default: "local",
+  },
+  isTemporary: {
+    type: Boolean,
+    default: false,
   },
   following: [
     {

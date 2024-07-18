@@ -1,6 +1,7 @@
 const User = require("../models/User");
 const Note = require("../models/Note");
 const bcrypt = require("bcrypt");
+const axios = require("axios");
 
 // @desc Get all users
 // @route GET /users
@@ -21,11 +22,25 @@ const getAllUsers = async (req, res) => {
 // @route POST /users
 // @access Private
 const createNewUser = async (req, res) => {
-  const { username, password, roles, email } = req.body;
+  const { username, password, roles, email, recaptchaValue } = req.body;
 
   // Confirm data
-  if (!username || !password) {
+  if (!username || !password || !recaptchaValue) {
     return res.status(400).json({ message: "All fields are required" });
+  }
+
+  // Verify reCAPTCHA
+  try {
+    const recaptchaResponse = await axios.post(
+      `https://www.google.com/recaptcha/api/siteverify?secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${recaptchaValue}`
+    );
+
+    if (!recaptchaResponse.data.success) {
+      return res.status(400).json({ message: "reCAPTCHA verification failed" });
+    }
+  } catch (error) {
+    console.error("reCAPTCHA verification error:", error);
+    return res.status(500).json({ message: "Error verifying reCAPTCHA" });
   }
 
   // Check for duplicate username
@@ -51,13 +66,17 @@ const createNewUser = async (req, res) => {
   }
 
   // Create and store new user
-  const user = await User.create(userObject);
+  try {
+    const user = await User.create(userObject);
 
-  if (user) {
-    //created
-    res.status(201).json({ message: `New user ${username} created` });
-  } else {
-    res.status(400).json({ message: "Invalid user data received" });
+    if (user) {
+      res.status(201).json({ message: `New user ${username} created` });
+    } else {
+      res.status(400).json({ message: "Invalid user data received" });
+    }
+  } catch (error) {
+    console.error("Error creating user:", error);
+    res.status(500).json({ message: "Error creating user" });
   }
 };
 

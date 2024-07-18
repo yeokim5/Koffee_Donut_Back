@@ -13,6 +13,30 @@ const mongoose = require("mongoose");
 const PORT = process.env.PORT || 3500;
 
 console.log(process.env.NODE_ENV);
+console.log("Checking environment variables:");
+console.log(
+  "ACCESS_TOKEN_SECRET:",
+  process.env.ACCESS_TOKEN_SECRET ? "Set" : "Not set"
+);
+console.log(
+  "REFRESH_TOKEN_SECRET:",
+  process.env.REFRESH_TOKEN_SECRET ? "Set" : "Not set"
+);
+console.log(
+  "TEMP_TOKEN_SECRET:",
+  process.env.TEMP_TOKEN_SECRET ? "Set" : "Not set"
+);
+
+if (
+  !process.env.ACCESS_TOKEN_SECRET ||
+  !process.env.REFRESH_TOKEN_SECRET ||
+  !process.env.TEMP_TOKEN_SECRET
+) {
+  console.error(
+    "One or more required environment variables are not set. Please check your .env file."
+  );
+  process.exit(1);
+}
 
 connectDB();
 
