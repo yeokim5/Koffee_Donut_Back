@@ -13,19 +13,6 @@ const mongoose = require("mongoose");
 const PORT = process.env.PORT || 3500;
 
 console.log(process.env.NODE_ENV);
-console.log("Checking environment variables:");
-console.log(
-  "ACCESS_TOKEN_SECRET:",
-  process.env.ACCESS_TOKEN_SECRET ? "Set" : "Not set"
-);
-console.log(
-  "REFRESH_TOKEN_SECRET:",
-  process.env.REFRESH_TOKEN_SECRET ? "Set" : "Not set"
-);
-console.log(
-  "TEMP_TOKEN_SECRET:",
-  process.env.TEMP_TOKEN_SECRET ? "Set" : "Not set"
-);
 
 if (
   !process.env.ACCESS_TOKEN_SECRET ||
@@ -50,7 +37,8 @@ app.use(cookieParser());
 
 app.use("/", express.static(path.join(__dirname, "public")));
 
-app.use("/", require("./routes/imageRoute"));
+app.use("/", require("./routes/s3Upload"));
+// app.use("/", require("./routes/imageRoute"));
 app.use("/", require("./routes/root"));
 app.use("/", require("./routes/commentRoutes"));
 app.use("/auth", require("./routes/authRoutes"));
