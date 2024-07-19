@@ -14,15 +14,7 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    validate: {
-      validator: function (v) {
-        if (this.authMethod === "google") {
-          return v != null; // If authMethod is google, email must be set
-        }
-        return true; // If authMethod is not google, email can be null
-      },
-      message: "Email is required for google authentication",
-    },
+    default: "",
   },
   name: {
     type: String,
@@ -59,9 +51,8 @@ const userSchema = new mongoose.Schema({
   ],
 });
 
-// Middleware to ensure email is unset for local authMethod
 userSchema.pre("save", function (next) {
-  if (this.authMethod !== "google") {
+  if (this.authMethod === "local" && !this.email) {
     this.email = undefined;
   }
   next();
