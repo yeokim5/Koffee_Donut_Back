@@ -5,6 +5,7 @@ const verifyJWT = require("../middleware/verifyJWT");
 
 // Routes that don't require authentication
 router.route("/").get(notesController.getAllNotes);
+// router.route("/").get(notesController.getPaginatedNotes);
 
 router.route("/:id/like").patch(notesController.likeNote);
 

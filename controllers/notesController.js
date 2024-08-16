@@ -36,6 +36,57 @@ const getAllNotes = async (req, res) => {
   }
 };
 
+// @desc Get paginated notes
+// @route GET /notes
+// @access Private
+const getPaginatedNotes = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1; // Current page number
+    const limit = parseInt(req.query.limit) || 10; // Number of notes per page
+    const skip = (page - 1) * limit; // Calculate how many documents to skip
+
+    // Get total count of notes
+    const totalNotes = await Note.countDocuments();
+
+    // Get paginated notes from MongoDB
+    const notes = await Note.find()
+      .sort({ createdAt: -1 }) // Sort by creation date, newest first
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // If no notes
+    if (!notes?.length) {
+      return res.status(400).json({ message: "No notes found" });
+    }
+
+    // Add username to each note before sending the response
+    const notesWithUser = await Promise.all(
+      notes.map(async (note) => {
+        try {
+          const user = await User.findById(note.user).lean().exec();
+          if (user) {
+            return { ...note, username: user.username };
+          } else {
+            return { ...note, username: "Unknown User" }; // Handle case where user does not exist
+          }
+        } catch (error) {
+          return { ...note, username: "Error retrieving user" }; // Handle errors in fetching user
+        }
+      })
+    );
+
+    res.json({
+      notes: notesWithUser,
+      currentPage: page,
+      totalPages: Math.ceil(totalNotes / limit),
+      totalNotes,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc Create new note
 // @route POST /notes
 // @access Private
@@ -221,6 +272,7 @@ const dislikeNote = async (req, res) => {
 };
 module.exports = {
   getAllNotes,
+  getPaginatedNotes,
   createNewNote,
   updateNote,
   deleteNote,
