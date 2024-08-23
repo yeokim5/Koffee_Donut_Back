@@ -41,38 +41,25 @@ const getAllNotes = async (req, res) => {
 // @access Private
 const getPaginatedNotes = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1; // Current page number
-    const limit = parseInt(req.query.limit) || 10; // Number of notes per page
-    const skip = (page - 1) * limit; // Calculate how many documents to skip
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-    // Get total count of notes
     const totalNotes = await Note.countDocuments();
-
-    // Get paginated notes from MongoDB
     const notes = await Note.find()
-      .sort({ createdAt: -1 }) // Sort by creation date, newest first
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .lean();
 
-    // If no notes
     if (!notes?.length) {
-      return res.status(400).json({ message: "No notes found" });
+      return res.status(404).json({ message: "No notes found" });
     }
 
-    // Add username to each note before sending the response
     const notesWithUser = await Promise.all(
       notes.map(async (note) => {
-        try {
-          const user = await User.findById(note.user).lean().exec();
-          if (user) {
-            return { ...note, username: user.username };
-          } else {
-            return { ...note, username: "Unknown User" }; // Handle case where user does not exist
-          }
-        } catch (error) {
-          return { ...note, username: "Error retrieving user" }; // Handle errors in fetching user
-        }
+        const user = await User.findById(note.user).lean().exec();
+        return { ...note, username: user ? user.username : "Unknown User" };
       })
     );
 
@@ -270,6 +257,58 @@ const dislikeNote = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+// @desc Get a single note by ID
+// @route GET /notes/:id
+// @access Private
+const getNoteById = async (req, res) => {
+  try {
+    const note = await Note.findById(req.params.id).lean().exec();
+
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+
+    const user = await User.findById(note.user).lean().exec();
+    const noteWithUser = {
+      ...note,
+      username: user ? user.username : "Unknown User",
+    };
+
+    res.json(noteWithUser);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Get notes by username
+// @route GET /notes/user/:username
+// @access Public
+const getNotesByUsername = async (req, res) => {
+  try {
+    const { username } = req.params;
+    const user = await User.findOne({ username }).exec();
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const notes = await Note.find({ user: user._id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!notes?.length) {
+      return res.status(404).json({ message: "No notes found for this user" });
+    }
+
+    const notesWithUsername = notes.map((note) => ({ ...note, username }));
+
+    res.json(notesWithUsername);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAllNotes,
   getPaginatedNotes,
@@ -278,4 +317,6 @@ module.exports = {
   deleteNote,
   likeNote,
   dislikeNote,
+  getNoteById,
+  getNotesByUsername,
 };
