@@ -8,7 +8,7 @@ const axios = require("axios");
 // @access Private
 const getAllUsers = async (req, res) => {
   // Get all users from MongoDB
-  const users = await User.find().select("-password").lean();
+  const users = await User.find().select("-password -email").lean(); // Exclude password and email
 
   // If no users
   if (!users?.length) {
@@ -170,7 +170,7 @@ const getUserProfile = async (req, res) => {
 
   try {
     const user = await User.findOne({ username })
-      .select("-password")
+      .select("-password") // Exclude password
       .populate("followers", "username")
       .populate("following", "username")
       .lean();
@@ -267,6 +267,26 @@ const unfollowUser = async (req, res) => {
   }
 };
 
+// @desc Get user data by username
+// @route GET /users/username/:username
+// @access Private
+const getUserDataByUsername = async (req, res) => {
+  const { username } = req.params;
+
+  try {
+    const user = await User.findOne({ username })
+      .select("-password") // Exclude password
+      .lean(); // Convert to plain JavaScript object
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   createNewUser,
@@ -275,4 +295,5 @@ module.exports = {
   getUserProfile,
   followUser,
   unfollowUser,
+  getUserDataByUsername, // Keep this line
 };

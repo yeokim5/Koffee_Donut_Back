@@ -309,6 +309,91 @@ const getNotesByUsername = async (req, res) => {
   }
 };
 
+// @desc Get trending notes
+// @route GET /notes/trending
+// @access Public
+const getTrendingNotes = async (req, res) => {
+  try {
+    const twentyFourHoursAgo = new Date();
+    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
+
+    const trendingNotes = await Note.find({
+      createdAt: { $gte: twentyFourHoursAgo },
+      likes: { $gte: 1 },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!trendingNotes.length) {
+      return res.status(404).json({ message: "No trending notes found" });
+    }
+
+    const trendingNotesWithUser = await Promise.all(
+      trendingNotes.map(async (note) => {
+        const user = await User.findById(note.user).lean().exec();
+        return { ...note, username: user ? user.username : "Unknown User" };
+      })
+    );
+
+    res.json(trendingNotesWithUser);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Get notes from users that the specified user is following
+// @route GET /notes/following/:username
+// @access Private
+const getFollowerNotes = async (req, res) => {
+  try {
+    const { username } = req.params;
+
+    // Find the user
+    const user = await User.findOne({ username }).exec();
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Get the list of users that the specified user is following
+    const following = user.following;
+
+    // Find all users that the specified user is following`
+    const followedUsers = await User.find({
+      username: { $in: following },
+    }).exec();
+
+    // Extract the user IDs
+    const followedUserIds = followedUsers.map((user) => user._id);
+
+    // Find all notes from the followed users
+    const notes = await Note.find({ user: { $in: followedUserIds } })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!notes?.length) {
+      return res
+        .status(404)
+        .json({ message: "No notes found from followed users" });
+    }
+
+    // Add username to each note
+    const notesWithUsername = await Promise.all(
+      notes.map(async (note) => {
+        const noteUser = await User.findById(note.user).lean().exec();
+        return {
+          ...note,
+          username: noteUser ? noteUser.username : "Unknown User",
+        };
+      })
+    );
+
+    res.json(notesWithUsername);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAllNotes,
   getPaginatedNotes,
@@ -319,4 +404,6 @@ module.exports = {
   dislikeNote,
   getNoteById,
   getNotesByUsername,
+  getTrendingNotes,
+  getFollowerNotes, // Add the new function to the exports
 };
