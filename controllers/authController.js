@@ -14,24 +14,28 @@ const login = async (req, res) => {
   const match = await bcrypt.compare(password, foundUser.password);
   if (!match) return res.status(401).json({ message: "Unauthorized" });
 
+  // Access token expiration set to 30 seconds
   const accessToken = jwt.sign(
     { UserInfo: { username: foundUser.username, roles: foundUser.roles } },
     process.env.ACCESS_TOKEN_SECRET,
-    { expiresIn: "10s" }
+    { expiresIn: "1d" } // Expires in 30 seconds
   );
+
+  // Refresh token expiration set to 30 seconds
   const refreshToken = jwt.sign(
     { username: foundUser.username },
     process.env.REFRESH_TOKEN_SECRET,
-    { expiresIn: "15s" }
+    { expiresIn: "1d" } // Expires in 30 seconds
   );
 
+  // Set the refresh token cookie to expire in 1 day (24 hours)
   res.cookie("jwt", refreshToken, {
     httpOnly: true,
     secure: true,
     sameSite: "None",
-    // maxAge: 7 * 24 * 60 * 60 * 1000,
-    maxAge: 10 * 1000,
+    maxAge: 24 * 60 * 60 * 1000, // 1 day in milliseconds
   });
+
   res.json({ accessToken });
 };
 
@@ -54,7 +58,7 @@ const refresh = (req, res) => {
       const accessToken = jwt.sign(
         { UserInfo: { username: foundUser.username, roles: foundUser.roles } },
         process.env.ACCESS_TOKEN_SECRET,
-        { expiresIn: "15m" }
+        { expiresIn: "1d" }
       );
       res.json({ accessToken });
     }

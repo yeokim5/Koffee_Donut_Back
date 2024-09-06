@@ -36,7 +36,9 @@ const createNewUser = async (req, res) => {
     );
 
     if (!recaptchaResponse.data.success) {
-      return res.status(400).json({ message: "reCAPTCHA verification failed" });
+      return res
+        .status(400)
+        .json({ message: "reCAPTCHA verification failed(refersh the page)" });
     }
   } catch (error) {
     console.error("reCAPTCHA verification error:", error);
