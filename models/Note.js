@@ -8,6 +8,10 @@ const noteSchema = new mongoose.Schema(
       required: true,
       ref: "User",
     },
+    imageURL: {
+      type: String,
+      default: "https://koffee-donut.s3.amazonaws.com/no+image.png",
+    },
     title: {
       type: String,
       required: true,
