@@ -78,7 +78,7 @@ const getPaginatedNotes = async (req, res) => {
 // @route POST /notes
 // @access Private
 const createNewNote = async (req, res) => {
-  const { user, title, text } = req.body;
+  const { user, title, text, imageURL } = req.body;
 
   // Confirm data
   if (!user || !title || !text) {
@@ -96,7 +96,7 @@ const createNewNote = async (req, res) => {
   }
 
   // Create and store the new user
-  const note = await Note.create({ user, title, text });
+  const note = await Note.create({ user, title, text, imageURL });
 
   if (note) {
     // Created
@@ -110,7 +110,7 @@ const createNewNote = async (req, res) => {
 // @route PATCH /notes
 // @access Private
 const updateNote = async (req, res) => {
-  const { id, user, title, text, completed } = req.body;
+  const { id, user, title, text, completed, imageURL } = req.body;
 
   // Confirm data
   if (!id || !user || !title || !text || typeof completed !== "boolean") {
@@ -139,6 +139,7 @@ const updateNote = async (req, res) => {
   note.title = title;
   note.text = text;
   note.completed = completed;
+  note.imageURL = imageURL; // Add this line to update the imageURL
 
   const updatedNote = await note.save();
 
