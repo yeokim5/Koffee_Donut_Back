@@ -395,6 +395,21 @@ const getFollowerNotes = async (req, res) => {
   }
 };
 
+// @desc Delete an image
+// @route POST /notes/delete-image
+// @access Private
+const deleteImage = async (req, res) => {
+  const { imageUrl } = req.body;
+
+  if (!imageUrl) {
+    return res.status(400).json({ message: "Image URL is required" });
+  }
+
+  await deleteS3Object(imageUrl);
+
+  res.json({ message: "Image deleted successfully" });
+};
+
 module.exports = {
   getAllNotes,
   getPaginatedNotes,
@@ -407,4 +422,5 @@ module.exports = {
   getNotesByUsername,
   getTrendingNotes,
   getFollowerNotes, // Add the new function to the exports
+  deleteImage,
 };

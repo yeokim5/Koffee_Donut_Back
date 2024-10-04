@@ -38,6 +38,7 @@ app.use(cookieParser());
 app.use("/", express.static(path.join(__dirname, "public")));
 
 app.use("/", require("./routes/s3Upload"));
+app.use("/", require("./routes/s3Delete"));
 // app.use("/", require("./routes/imageRoute"));
 app.use("/", require("./routes/root"));
 app.use("/", require("./routes/commentRoutes"));
