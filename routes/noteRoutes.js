@@ -26,7 +26,8 @@ router.route("/following/:username").get(notesController.getFollowerNotes);
 router
   .route("/")
   .post(notesController.createNewNote)
-  .patch(notesController.updateNote)
-  .delete(notesController.deleteNote);
+  .patch(notesController.updateNote);
+
+router.route("/:id").delete(notesController.deleteNote);
 
 module.exports = router;

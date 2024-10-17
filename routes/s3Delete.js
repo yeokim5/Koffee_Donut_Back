@@ -1,3 +1,4 @@
+// Backend: deleteImages.js
 const express = require("express");
 const { S3Client, DeleteObjectCommand } = require("@aws-sdk/client-s3");
 require("dotenv").config();
@@ -9,7 +10,6 @@ const REGION = process.env.REGION;
 const ACCESS_KEY = process.env.ACCESS_KEY;
 const SECRET_KEY = process.env.SECRET_KEY;
 
-// S3 client
 const s3 = new S3Client({
   region: REGION,
   credentials: {
@@ -18,34 +18,30 @@ const s3 = new S3Client({
   },
 });
 
-router.post("/notes/delete-image", async (req, res) => {
-  console.log("Received delete request");
+router.delete("/delete-images", async (req, res) => {
+  const { fileNames } = req.body;
 
-  const { imageUrl } = req.body;
-
-  if (!imageUrl) {
-    console.error("No image URL provided");
-    return res.status(400).json({ success: 0, error: "No image URL provided" });
+  if (!fileNames || !Array.isArray(fileNames) || fileNames.length === 0) {
+    return res
+      .status(400)
+      .json({ error: "Invalid or missing fileNames array" });
   }
 
   try {
-    const key = imageUrl.split("/").pop();
-    const deleteParams = {
-      Bucket: BUCKET_NAME,
-      Key: key,
-    };
-
-    const command = new DeleteObjectCommand(deleteParams);
-    await s3.send(command);
-
-    console.log("Image deleted successfully");
-    res.json({
-      success: 1,
-      message: "Image deleted successfully",
+    const deletePromises = fileNames.map((fileName) => {
+      const deleteParams = {
+        Bucket: BUCKET_NAME,
+        Key: fileName,
+      };
+      const command = new DeleteObjectCommand(deleteParams);
+      return s3.send(command);
     });
-  } catch (err) {
-    console.error("Error in S3 delete:", err);
-    res.status(500).json({ success: 0, error: `Delete error: ${err.message}` });
+
+    await Promise.all(deletePromises);
+    res.json({ message: "Images deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting images:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 

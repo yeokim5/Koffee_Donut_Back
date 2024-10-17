@@ -149,8 +149,9 @@ const updateNote = async (req, res) => {
 // @desc Delete a note
 // @route DELETE /notes
 // @access Private
+// In your notes controller
 const deleteNote = async (req, res) => {
-  const { id } = req.body;
+  const { id } = req.params; // Change from req.body to req.params
 
   // Confirm data
   if (!id) {
