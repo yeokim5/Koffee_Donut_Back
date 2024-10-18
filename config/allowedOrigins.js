@@ -4,6 +4,7 @@ const allowedOrigins = [
   "https://koffee-donut.onrender.com",
   "https://koffee-donut.vercel.app",
   "https://koffeed.com",
+  "https://www.koffeed.com",
 ];
 
 module.exports = allowedOrigins;
