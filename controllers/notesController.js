@@ -411,6 +411,28 @@ const deleteImage = async (req, res) => {
   res.json({ message: "Image deleted successfully" });
 };
 
+// @desc increment view
+// @route PATCH /notes/:id/views
+// @access Private
+const incrementViews = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const note = await Note.findById(id);
+
+    if (!note) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+
+    note.views += 1;
+    await note.save();
+
+    res.json({ message: "View count updated successfully", views: note.views });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getAllNotes,
   getPaginatedNotes,
@@ -424,4 +446,5 @@ module.exports = {
   getTrendingNotes,
   getFollowerNotes, // Add the new function to the exports
   deleteImage,
+  incrementViews,
 };

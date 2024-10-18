@@ -14,6 +14,8 @@ router.route("/:id/dislike").patch(notesController.dislikeNote);
 
 router.route("/:id").get(notesController.getNoteById);
 
+router.route("/:id/views").patch(notesController.incrementViews);
+
 // Add this new route before the authenticated routes
 router.route("/user/:username").get(notesController.getNotesByUsername);
 

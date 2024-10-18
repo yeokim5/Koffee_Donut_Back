@@ -1,3 +1,4 @@
+// noteSchema.js
 const mongoose = require("mongoose");
 const AutoIncrement = require("mongoose-sequence")(mongoose);
 
@@ -29,6 +30,10 @@ const noteSchema = new mongoose.Schema(
       default: 0,
     },
     dislikes: {
+      type: Number,
+      default: 0,
+    },
+    views: {
       type: Number,
       default: 0,
     },
