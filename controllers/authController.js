@@ -31,6 +31,7 @@ const login = async (req, res) => {
     secure: true,
     sameSite: "None",
     maxAge: 24 * 60 * 60 * 1000,
+    path: "/",
   });
 
   res.json({ accessToken });
@@ -65,7 +66,12 @@ const refresh = (req, res) => {
 const logout = (req, res) => {
   const cookies = req.cookies;
   if (!cookies?.jwt) return res.sendStatus(204);
-  res.clearCookie("jwt", { httpOnly: true, sameSite: "None", secure: true });
+  res.clearCookie("jwt", {
+    httpOnly: true,
+    sameSite: "None",
+    secure: true,
+    path: "/",
+  });
   res.json({ message: "Cookie cleared" });
 };
 
