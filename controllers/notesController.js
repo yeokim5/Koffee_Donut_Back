@@ -299,9 +299,9 @@ const getNotesByUsername = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean();
 
-    if (!notes?.length) {
-      return res.status(404).json({ message: "No notes found for this user" });
-    }
+    // if (!notes?.length) {
+    //   return res.status(404).json({ message: "No notes found for this user" });
+    // }
 
     const notesWithUsername = notes.map((note) => ({ ...note, username }));
 
