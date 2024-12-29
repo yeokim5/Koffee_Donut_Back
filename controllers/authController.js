@@ -104,33 +104,26 @@ const googleLogin = async (req, res) => {
       const tempToken = jwt.sign(
         { userId: user._id },
         process.env.TEMP_TOKEN_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "1m" }
       );
       return res.json({ isFirstTimeUser: true, tempToken });
     }
 
     const accessToken = jwt.sign(
-      { UserInfo: { username: user.username, roles: user.roles } },
+      {
+        UserInfo: {
+          username: user.username,
+          roles: user.roles,
+        },
+      },
       process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: "15m" }
-    );
-    const refreshToken = jwt.sign(
-      { username: user.username },
-      process.env.REFRESH_TOKEN_SECRET,
-      { expiresIn: "7d" }
+      { expiresIn: "1m" }
     );
 
-    res.cookie("jwt", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "None",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
     res.json({ accessToken });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Internal server error", error: error.message });
+    console.error("Google login error:", error);
+    res.status(500).json({ message: "Internal server error" });
   }
 };
 
