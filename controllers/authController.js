@@ -45,7 +45,7 @@ const googleLogin = async (req, res) => {
   }
 
   try {
-    // Find existing user by email
+    // Find existing user by
     let user = await User.findOne({ email }).exec();
 
     if (!user) {
