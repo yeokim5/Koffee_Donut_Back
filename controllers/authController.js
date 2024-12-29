@@ -37,6 +37,85 @@ const login = async (req, res) => {
   res.json({ accessToken });
 };
 
+const googleLogin = async (req, res) => {
+  const { name, email } = req.body;
+
+  if (!name || !email) {
+    return res.status(400).json({ message: "Name and email are required" });
+  }
+
+  try {
+    // Find existing user by email
+    let user = await User.findOne({ email }).exec();
+
+    if (!user) {
+      // If user doesn't exist, create a new user with a temporary password
+      const tempPassword = await bcrypt.hash(
+        Math.random().toString(36).slice(-8),
+        10
+      );
+      user = new User({
+        email,
+        name,
+        password: tempPassword,
+        roles: ["Employee"],
+        active: true,
+        authMethod: "google", // Mark user as having logged in through Google
+        isTemporary: true,
+      });
+      await user.save();
+    }
+
+    // If the user is temporary or doesn't have a username, return a temp token
+    if (user.isTemporary || !user.username) {
+      const tempToken = jwt.sign(
+        { userId: user._id },
+        process.env.TEMP_TOKEN_SECRET,
+        { expiresIn: "1m" }
+      );
+      return res.json({ isFirstTimeUser: true, tempToken });
+    }
+
+    // Check if the user is active
+    if (!user.active) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    // Generate access and refresh tokens for existing active users
+    const accessToken = jwt.sign(
+      {
+        UserInfo: {
+          username: user.username,
+          roles: user.roles,
+        },
+      },
+      process.env.ACCESS_TOKEN_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    const refreshToken = jwt.sign(
+      { username: user.username },
+      process.env.REFRESH_TOKEN_SECRET,
+      { expiresIn: "1d" }
+    );
+
+    // Set the refresh token as an HttpOnly cookie
+    res.cookie("jwt", refreshToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+      maxAge: 24 * 60 * 60 * 1000,
+      path: "/",
+    });
+
+    // Return the access token
+    res.json({ accessToken });
+  } catch (error) {
+    console.error("Google login error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 const refresh = (req, res) => {
   const cookies = req.cookies;
   if (!cookies?.jwt) return res.status(401).json({ message: "Unauthorized" });
@@ -75,58 +154,6 @@ const logout = (req, res) => {
   res.json({ message: "Cookie cleared" });
 };
 
-const googleLogin = async (req, res) => {
-  const { name, email } = req.body;
-  if (!name || !email) {
-    return res.status(400).json({ message: "Name and email are required" });
-  }
-
-  try {
-    let user = await User.findOne({ email }).exec();
-    if (!user) {
-      const tempPassword = await bcrypt.hash(
-        Math.random().toString(36).slice(-8),
-        10
-      );
-      user = new User({
-        email,
-        name,
-        password: tempPassword,
-        roles: ["Employee"],
-        active: true,
-        authMethod: "google",
-        isTemporary: true,
-      });
-      await user.save();
-    }
-
-    if (user.isTemporary || !user.username) {
-      const tempToken = jwt.sign(
-        { userId: user._id },
-        process.env.TEMP_TOKEN_SECRET,
-        { expiresIn: "1m" }
-      );
-      return res.json({ isFirstTimeUser: true, tempToken });
-    }
-
-    const accessToken = jwt.sign(
-      {
-        UserInfo: {
-          username: user.username,
-          roles: user.roles,
-        },
-      },
-      process.env.ACCESS_TOKEN_SECRET,
-      { expiresIn: "1m" }
-    );
-
-    res.json({ accessToken });
-  } catch (error) {
-    console.error("Google login error:", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
 const setUsername = async (req, res) => {
   const { username, tempToken } = req.body;
   if (!username || !tempToken) {
@@ -161,7 +188,7 @@ const setUsername = async (req, res) => {
       httpOnly: true,
       secure: true,
       sameSite: "None",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: 24 * 60 * 60 * 1000,
     });
     res.json({ accessToken });
   } catch (error) {
