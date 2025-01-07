@@ -46,11 +46,14 @@ const getPaginatedNotes = async (req, res) => {
     const skip = (page - 1) * limit;
 
     const totalNotes = await Note.countDocuments();
+
+    // Ensure consistent ordering with proper index
     const notes = await Note.find()
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .lean();
+      .lean()
+      .exec();
 
     if (!notes?.length) {
       return res.status(404).json({ message: "No notes found" });
