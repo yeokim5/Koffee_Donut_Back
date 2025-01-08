@@ -11,8 +11,6 @@ const REGION = process.env.REGION;
 const ACCESS_KEY = process.env.ACCESS_KEY;
 const SECRET_KEY = process.env.SECRET_KEY;
 
-app.use(cors({ origin: "https://www.koffeed.com" }));
-
 // S3 client
 const s3 = new AWS.S3({
   credentials: {
