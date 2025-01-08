@@ -4,6 +4,7 @@ const allowedOrigins = [
   "https://koffee-donut.onrender.com",
   "https://koffee-donut.vercel.app",
   "https://www.koffeed.com",
+  // Add any other frontend domains you're using
 ];
 
 module.exports = allowedOrigins;
