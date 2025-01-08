@@ -25,20 +25,7 @@ const upload = multer({
   storage: multer.memoryStorage(),
 }).single("file");
 
-// Add this before your route handler
-router.options("/upload", (req, res) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
-  res.status(200).send();
-});
-
 router.post("/upload", (req, res) => {
-  // Add these headers to your existing route
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Methods", "POST");
-  res.header("Access-Control-Allow-Headers", "Content-Type");
-
   console.log("Received upload request");
 
   upload(req, res, async function (err) {
