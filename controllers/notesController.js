@@ -1,6 +1,10 @@
 const Note = require("../models/Note");
 const User = require("../models/User");
 
+// Add at the top of the file
+const cache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+
 // @desc Get all notes
 // @route GET /notes
 // @access Private
@@ -43,8 +47,18 @@ const getPaginatedNotes = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    const cacheKey = `notes_${page}_${limit}`;
 
+    // Check cache first
+    if (cache.has(cacheKey)) {
+      const { data, timestamp } = cache.get(cacheKey);
+      if (Date.now() - timestamp < CACHE_TTL) {
+        return res.json(data);
+      }
+      cache.delete(cacheKey);
+    }
+
+    const skip = (page - 1) * limit;
     const totalNotes = await Note.countDocuments();
 
     // Ensure consistent ordering with proper index
@@ -66,12 +80,20 @@ const getPaginatedNotes = async (req, res) => {
       })
     );
 
-    res.json({
+    const response = {
       notes: notesWithUser,
       currentPage: page,
       totalPages: Math.ceil(totalNotes / limit),
       totalNotes,
+    };
+
+    // Cache the response
+    cache.set(cacheKey, {
+      data: response,
+      timestamp: Date.now(),
     });
+
+    res.json(response);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -319,6 +341,17 @@ const getNotesByUsername = async (req, res) => {
 // @access Public
 const getTrendingNotes = async (req, res) => {
   try {
+    const cacheKey = "trending_notes";
+
+    // Check cache first
+    if (cache.has(cacheKey)) {
+      const { data, timestamp } = cache.get(cacheKey);
+      if (Date.now() - timestamp < CACHE_TTL) {
+        return res.json(data);
+      }
+      cache.delete(cacheKey);
+    }
+
     const twentyFourHoursAgo = new Date();
     twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
@@ -339,6 +372,12 @@ const getTrendingNotes = async (req, res) => {
         return { ...note, username: user ? user.username : "Unknown User" };
       })
     );
+
+    // Cache the response
+    cache.set(cacheKey, {
+      data: trendingNotesWithUser,
+      timestamp: Date.now(),
+    });
 
     res.json(trendingNotesWithUser);
   } catch (error) {
