@@ -138,6 +138,13 @@ const createNewNote = async (req, res) => {
   const note = await Note.create({ user, title, text, imageURL });
 
   if (note) {
+    // Clear all notes-related caches to ensure fresh data is fetched
+    for (const key of cache.keys()) {
+      if (key.startsWith("notes_") || key === "trending_notes") {
+        cache.delete(key);
+      }
+    }
+
     // Created
     return res.status(201).json({ message: "New note created" });
   } else {
@@ -182,13 +189,19 @@ const updateNote = async (req, res) => {
 
   const updatedNote = await note.save();
 
+  // Clear cache after updating a note
+  for (const key of cache.keys()) {
+    if (key.startsWith("notes_") || key === "trending_notes") {
+      cache.delete(key);
+    }
+  }
+
   res.json(`'${updatedNote.title}' updated`);
 };
 
 // @desc Delete a note
 // @route DELETE /notes
 // @access Private
-// In your notes controller
 const deleteNote = async (req, res) => {
   const { id } = req.params; // Change from req.body to req.params
 
@@ -205,6 +218,13 @@ const deleteNote = async (req, res) => {
   }
 
   const result = await note.deleteOne();
+
+  // Clear cache after deleting a note
+  for (const key of cache.keys()) {
+    if (key.startsWith("notes_") || key === "trending_notes") {
+      cache.delete(key);
+    }
+  }
 
   const reply = `Note '${result.title}' with ID ${result._id} deleted`;
 
