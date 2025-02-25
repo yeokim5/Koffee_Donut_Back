@@ -3,7 +3,29 @@ const User = require("../models/User");
 
 // Add at the top of the file
 const cache = new Map();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes in milliseconds
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes in milliseconds
+const CACHE_TTL_TRENDING = 30 * 60 * 1000; // 30 minutes for trending
+
+// Helper function to get cached data or fetch new data
+const getCachedOrFresh = async (cacheKey, fetchFunction, ttl = CACHE_TTL) => {
+  if (cache.has(cacheKey)) {
+    const { data, timestamp } = cache.get(cacheKey);
+    if (Date.now() - timestamp < ttl) {
+      return { data, fromCache: true };
+    }
+    cache.delete(cacheKey);
+  }
+
+  const data = await fetchFunction();
+
+  // Cache the response
+  cache.set(cacheKey, {
+    data,
+    timestamp: Date.now(),
+  });
+
+  return { data, fromCache: false };
+};
 
 // @desc Get all notes
 // @route GET /notes
@@ -49,53 +71,45 @@ const getPaginatedNotes = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const cacheKey = `notes_${page}_${limit}`;
 
-    // Check cache first
-    if (cache.has(cacheKey)) {
-      const { data, timestamp } = cache.get(cacheKey);
-      if (Date.now() - timestamp < CACHE_TTL) {
-        return res.json(data);
+    const fetchNotes = async () => {
+      const skip = (page - 1) * limit;
+      const totalNotes = await Note.countDocuments();
+
+      const notes = await Note.find()
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec();
+
+      if (!notes?.length) {
+        throw { status: 404, message: "No notes found" };
       }
-      cache.delete(cacheKey);
-    }
 
-    const skip = (page - 1) * limit;
-    const totalNotes = await Note.countDocuments();
+      const notesWithUser = await Promise.all(
+        notes.map(async (note) => {
+          const user = await User.findById(note.user).lean().exec();
+          return { ...note, username: user ? user.username : "Unknown User" };
+        })
+      );
 
-    // Ensure consistent ordering with proper index
-    const notes = await Note.find()
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean()
-      .exec();
-
-    if (!notes?.length) {
-      return res.status(404).json({ message: "No notes found" });
-    }
-
-    const notesWithUser = await Promise.all(
-      notes.map(async (note) => {
-        const user = await User.findById(note.user).lean().exec();
-        return { ...note, username: user ? user.username : "Unknown User" };
-      })
-    );
-
-    const response = {
-      notes: notesWithUser,
-      currentPage: page,
-      totalPages: Math.ceil(totalNotes / limit),
-      totalNotes,
+      return {
+        notes: notesWithUser,
+        currentPage: page,
+        totalPages: Math.ceil(totalNotes / limit),
+        totalNotes,
+      };
     };
 
-    // Cache the response
-    cache.set(cacheKey, {
-      data: response,
-      timestamp: Date.now(),
-    });
-
-    res.json(response);
+    const { data, fromCache } = await getCachedOrFresh(cacheKey, fetchNotes);
+    res.setHeader("X-From-Cache", fromCache);
+    res.json(data);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    if (error.status) {
+      res.status(error.status).json({ message: error.message });
+    } else {
+      res.status(500).json({ message: error.message });
+    }
   }
 };
 
@@ -346,7 +360,7 @@ const getTrendingNotes = async (req, res) => {
     // Check cache first
     if (cache.has(cacheKey)) {
       const { data, timestamp } = cache.get(cacheKey);
-      if (Date.now() - timestamp < CACHE_TTL) {
+      if (Date.now() - timestamp < CACHE_TTL_TRENDING) {
         return res.json(data);
       }
       cache.delete(cacheKey);
