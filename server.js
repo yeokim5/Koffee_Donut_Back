@@ -46,7 +46,7 @@ app.use("/", require("./routes/commentRoutes"));
 app.use("/auth", require("./routes/authRoutes"));
 app.use("/users", require("./routes/userRoutes"));
 app.use("/notes", require("./routes/noteRoutes"));
-app.use("/ping", pingRoutes);
+// app.use("/ping", pingRoutes);
 
 app.all("*", (req, res) => {
   res.status(404);
