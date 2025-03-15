@@ -10,31 +10,18 @@ const connectDB = async () => {
   }
 
   try {
-    // Add connection pooling and optimization options
-    const conn = await mongoose.connect(process.env.DATABASE_URI, {
+    await mongoose.connect(process.env.DATABASE_URI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
-      // Optimal connection pooling
+      // Add connection pooling settings
       maxPoolSize: 10,
-      minPoolSize: 5,
-      // Optimize timeouts
-      serverSelectionTimeoutMS: 5000,
+      minPoolSize: 2,
       socketTimeoutMS: 45000,
-      // Keep alive
-      keepAlive: true,
-      keepAliveInitialDelay: 300000,
-      // Allow reconnection attempts
-      retryWrites: true,
-      // Set read preference to nearest server for better performance
-      readPreference: "nearest",
+      serverSelectionTimeoutMS: 5000,
+      heartbeatFrequencyMS: 10000
     });
-
-    isConnected = true;
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (err) {
-    console.error("MongoDB connection error:", err);
-    // Retry connection with exponential backoff
-    setTimeout(connectDB, 5000);
+    console.log(err);
   }
 };
 
