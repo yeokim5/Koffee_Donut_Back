@@ -238,6 +238,10 @@ const likeNote = async (req, res) => {
   const { id } = req.params;
   const { userId } = req.body;
 
+  if (!userId) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
+
   try {
     const note = await Note.findById(id);
 
@@ -281,6 +285,10 @@ const likeNote = async (req, res) => {
 const dislikeNote = async (req, res) => {
   const { id } = req.params;
   const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(401).json({ message: "Authentication required" });
+  }
 
   try {
     const note = await Note.findById(id);
@@ -377,43 +385,38 @@ const getTrendingNotes = async (req, res) => {
   try {
     const cacheKey = "trending_notes";
 
-    // Check cache first
-    if (cache.has(cacheKey)) {
-      const { data, timestamp } = cache.get(cacheKey);
-      if (Date.now() - timestamp < CACHE_TTL_TRENDING) {
-        return res.json(data);
-      }
-      cache.delete(cacheKey);
-    }
+    const fetchTrendingNotes = async () => {
+      // Get notes from last 7 days instead of 24 hours, sorted by engagement
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    const twentyFourHoursAgo = new Date();
-    twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
-
-    const trendingNotes = await Note.find({
-      createdAt: { $gte: twentyFourHoursAgo },
-      likes: { $gte: 1 },
-    })
-      .sort({ createdAt: -1 })
-      .lean();
-
-    if (!trendingNotes.length) {
-      return res.status(404).json({ message: "No trending notes found" });
-    }
-
-    const trendingNotesWithUser = await Promise.all(
-      trendingNotes.map(async (note) => {
-        const user = await User.findById(note.user).lean().exec();
-        return { ...note, username: user ? user.username : "Unknown User" };
+      const trendingNotes = await Note.find({
+        createdAt: { $gte: sevenDaysAgo },
       })
+        .sort({ likes: -1, views: -1, createdAt: -1 }) // Sort by likes, views, then date
+        .limit(20) // Limit to top 20 trending
+        .lean();
+
+      if (!trendingNotes.length) {
+        return [];
+      }
+
+      const trendingNotesWithUser = await Promise.all(
+        trendingNotes.map(async (note) => {
+          const user = await User.findById(note.user).lean().exec();
+          return { ...note, username: user ? user.username : "Unknown User" };
+        })
+      );
+
+      return trendingNotesWithUser;
+    };
+
+    const { data } = await getCachedOrFresh(
+      cacheKey,
+      fetchTrendingNotes,
+      CACHE_TTL_TRENDING
     );
-
-    // Cache the response
-    cache.set(cacheKey, {
-      data: trendingNotesWithUser,
-      timestamp: Date.now(),
-    });
-
-    res.json(trendingNotesWithUser);
+    res.json(data);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -425,37 +428,22 @@ const getTrendingNotes = async (req, res) => {
 const getFollowerNotes = async (req, res) => {
   try {
     const { username } = req.params;
-
-    // Find the user
     const user = await User.findOne({ username }).exec();
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
     }
 
-    // Get the list of users that the specified user is following
     const following = user.following;
-
-    // Find all users that the specified user is following`
     const followedUsers = await User.find({
       username: { $in: following },
     }).exec();
-
-    // Extract the user IDs
     const followedUserIds = followedUsers.map((user) => user._id);
 
-    // Find all notes from the followed users
     const notes = await Note.find({ user: { $in: followedUserIds } })
       .sort({ createdAt: -1 })
       .lean();
 
-    if (!notes?.length) {
-      return res
-        .status(404)
-        .json({ message: "No notes found from followed users" });
-    }
-
-    // Add username to each note
     const notesWithUsername = await Promise.all(
       notes.map(async (note) => {
         const noteUser = await User.findById(note.user).lean().exec();
@@ -520,7 +508,7 @@ module.exports = {
   getNoteById,
   getNotesByUsername,
   getTrendingNotes,
-  getFollowerNotes, // Add the new function to the exports
+  getFollowerNotes,
   deleteImage,
   incrementViews,
 };
