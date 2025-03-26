@@ -1,5 +1,6 @@
 const Note = require("../models/Note");
 const User = require("../models/User");
+const mongoose = require("mongoose");
 
 // Add at the top of the file
 const cache = new Map();
@@ -239,42 +240,88 @@ const likeNote = async (req, res) => {
   const { userId } = req.body;
 
   if (!userId) {
-    return res.status(401).json({ message: "Authentication required" });
+    return res
+      .status(401)
+      .json({ message: "Authentication required: userId is missing" });
   }
 
   try {
+    // Validate note ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid note ID format" });
+    }
+
+    // Validate user ID
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID format" });
+    }
+
     const note = await Note.findById(id);
 
     if (!note) {
       return res.status(404).json({ message: "Note not found" });
     }
 
-    if (note.likedBy.includes(userId)) {
-      // User already liked, so we undo the like
-      note.likedBy = note.likedBy.filter((user) => user.toString() !== userId);
+    console.log("Processing like for note:", {
+      noteId: id,
+      userId: userId,
+      likedBy: note.likedBy.map((id) => id.toString()),
+      dislikedBy: note.dislikedBy.map((id) => id.toString()),
+    });
+
+    // Convert userId to string for consistent comparison
+    const userIdStr = userId.toString();
+
+    // Check if already liked - using some() for more reliable matching
+    const alreadyLiked = note.likedBy.some((id) => id.toString() === userIdStr);
+
+    // Check if already disliked - using some() for more reliable matching
+    const alreadyDisliked = note.dislikedBy.some(
+      (id) => id.toString() === userIdStr
+    );
+
+    // Update arrays and count based on current state
+    if (alreadyLiked) {
+      // If already liked, remove the like
+      note.likedBy = note.likedBy.filter((id) => id.toString() !== userIdStr);
       note.likes--;
-    } else if (note.dislikedBy.includes(userId)) {
-      // User is in the dislike list, so we remove from dislike and add to like
+    } else if (alreadyDisliked) {
+      // If already disliked, remove the dislike and add the like
       note.dislikedBy = note.dislikedBy.filter(
-        (user) => user.toString() !== userId
+        (id) => id.toString() !== userIdStr
       );
       note.likedBy.push(userId);
-      note.likes += 2;
+      note.likes += 2; // +1 for removing dislike, +1 for adding like
     } else {
-      // User is not in either list, so we add to like
+      // Not liked or disliked, add the like
       note.likedBy.push(userId);
       note.likes++;
     }
 
     await note.save();
 
+    // Clear cache entries related to this note
+    for (const key of cache.keys()) {
+      if (key.startsWith("notes_") || key === "trending_notes") {
+        cache.delete(key);
+      }
+    }
+
+    console.log("Like operation successful, updated note:", {
+      likes: note.likes,
+      likedBy: note.likedBy.map((id) => id.toString()),
+      dislikedBy: note.dislikedBy.map((id) => id.toString()),
+    });
+
     res.json({
       message: "Note like status updated successfully",
       userId: userId,
       likes: note.likes,
-      dislikes: note.dislikedBy.length,
+      likedBy: note.likedBy.map((id) => id.toString()),
+      dislikedBy: note.dislikedBy.map((id) => id.toString()),
     });
   } catch (error) {
+    console.error("Error in likeNote:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -286,43 +333,95 @@ const dislikeNote = async (req, res) => {
   const { id } = req.params;
   const { userId } = req.body;
 
+  console.log("Dislike note request received:", {
+    noteId: id,
+    userId,
+    body: req.body,
+  });
+
   if (!userId) {
-    return res.status(401).json({ message: "Authentication required" });
+    return res
+      .status(401)
+      .json({ message: "Authentication required: userId is missing" });
   }
 
   try {
+    // Validate note ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid note ID format" });
+    }
+
+    // Validate user ID
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(400).json({ message: "Invalid user ID format" });
+    }
+
     const note = await Note.findById(id);
 
     if (!note) {
       return res.status(404).json({ message: "Note not found" });
     }
 
-    if (note.dislikedBy.includes(userId)) {
-      // User already disliked, so we undo the dislike
+    console.log("Processing dislike for note:", {
+      noteId: id,
+      userId: userId,
+      likedBy: note.likedBy.map((id) => id.toString()),
+      dislikedBy: note.dislikedBy.map((id) => id.toString()),
+    });
+
+    // Convert userId to string for consistent comparison
+    const userIdStr = userId.toString();
+
+    // Check if already disliked - using some() for more reliable matching
+    const alreadyDisliked = note.dislikedBy.some(
+      (id) => id.toString() === userIdStr
+    );
+
+    // Check if already liked - using some() for more reliable matching
+    const alreadyLiked = note.likedBy.some((id) => id.toString() === userIdStr);
+
+    // Update arrays and count based on current state
+    if (alreadyDisliked) {
+      // If already disliked, remove the dislike
       note.dislikedBy = note.dislikedBy.filter(
-        (user) => user.toString() !== userId
+        (id) => id.toString() !== userIdStr
       );
       note.likes++;
-    } else if (note.likedBy.includes(userId)) {
-      // User is in the like list, so we remove from like and add to dislike
-      note.likedBy = note.likedBy.filter((user) => user.toString() !== userId);
+    } else if (alreadyLiked) {
+      // If already liked, remove the like and add the dislike
+      note.likedBy = note.likedBy.filter((id) => id.toString() !== userIdStr);
       note.dislikedBy.push(userId);
-      note.likes -= 2;
+      note.likes -= 2; // -1 for removing like, -1 for adding dislike
     } else {
-      // User is not in either list, so we add to dislike
+      // Not liked or disliked, add the dislike
       note.dislikedBy.push(userId);
       note.likes--;
     }
 
     await note.save();
 
+    // Clear cache entries related to this note
+    for (const key of cache.keys()) {
+      if (key.startsWith("notes_") || key === "trending_notes") {
+        cache.delete(key);
+      }
+    }
+
+    console.log("Dislike operation successful, updated note:", {
+      likes: note.likes,
+      likedBy: note.likedBy.map((id) => id.toString()),
+      dislikedBy: note.dislikedBy.map((id) => id.toString()),
+    });
+
     res.json({
       message: "Note dislike status updated successfully",
       userId: userId,
       likes: note.likes,
-      dislikes: note.dislikedBy.length,
+      likedBy: note.likedBy.map((id) => id.toString()),
+      dislikedBy: note.dislikedBy.map((id) => id.toString()),
     });
   } catch (error) {
+    console.error("Error in dislikeNote:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -339,9 +438,15 @@ const getNoteById = async (req, res) => {
     }
 
     const user = await User.findById(note.user).lean().exec();
+
+    // Ensure likedBy and dislikedBy are properly formatted as string IDs
     const noteWithUser = {
       ...note,
       username: user ? user.username : "Unknown User",
+      likedBy: note.likedBy ? note.likedBy.map((id) => id.toString()) : [],
+      dislikedBy: note.dislikedBy
+        ? note.dislikedBy.map((id) => id.toString())
+        : [],
     };
 
     res.json(noteWithUser);
