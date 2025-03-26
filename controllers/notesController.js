@@ -161,14 +161,23 @@ const updateNote = async (req, res) => {
 
   // Confirm data
   if (!id || !user || !title || !text || typeof completed !== "boolean") {
-    return res.status(400).json({ message: "All fields are required" });
+    return res.status(400).json({
+      message: "All fields are required",
+      receivedData: {
+        id,
+        user,
+        title,
+        textLength: text ? text.length : 0,
+        completed,
+      },
+    });
   }
 
   // Confirm note exists to update
   const note = await Note.findById(id).exec();
 
   if (!note) {
-    return res.status(400).json({ message: "Note not found" });
+    return res.status(404).json({ message: "Note not found" });
   }
 
   // Check for duplicate title
@@ -187,6 +196,7 @@ const updateNote = async (req, res) => {
   note.text = text;
   note.completed = completed;
   note.imageURL = imageURL; // Add this line to update the imageURL
+  note.updatedAt = new Date(); // Update the timestamp
 
   const updatedNote = await note.save();
 
@@ -197,7 +207,15 @@ const updateNote = async (req, res) => {
     }
   }
 
-  res.json(`'${updatedNote.title}' updated`);
+  res.json({
+    message: `'${updatedNote.title}' updated`,
+    note: {
+      id: updatedNote._id,
+      title: updatedNote.title,
+      completed: updatedNote.completed,
+      updatedAt: updatedNote.updatedAt,
+    },
+  });
 };
 
 // @desc Delete a note
