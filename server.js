@@ -11,7 +11,6 @@ const corsOptions = require("./config/corsOptions");
 const connectDB = require("./config/dbConn");
 const mongoose = require("mongoose");
 const PORT = process.env.PORT || 3500;
-const pingRoutes = require("./routes/pingRoutes");
 
 console.log(process.env.NODE_ENV);
 
@@ -46,7 +45,6 @@ app.use("/", require("./routes/commentRoutes"));
 app.use("/auth", require("./routes/authRoutes"));
 app.use("/users", require("./routes/userRoutes"));
 app.use("/notes", require("./routes/noteRoutes"));
-// app.use("/ping", pingRoutes);
 
 app.all("*", (req, res) => {
   res.status(404);
